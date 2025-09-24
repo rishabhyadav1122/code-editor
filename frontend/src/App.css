@@ -154,4 +154,19 @@ body{
     flex-grow: 1;
     background-color:white;
   }
+  
+}
+
+.run-btn{
+  background-color: rgb(12,209,38);
+  padding: 10px;
+  cursor: pointer;
+}
+
+.output-console{
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  font-size: 20px;
+  height: 200px;
 }
