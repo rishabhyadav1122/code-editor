@@ -1,9 +1,11 @@
-import { Socket } from "dgram";
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import path from 'path'
 import axios from 'axios'
+import dotenv from "dotenv";
+dotenv.config();
+
 
 const app = express();
 
@@ -67,22 +69,53 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("languageUpdate",language)
   })
 
-  socket.on("compileCode",async({code,roomId,language,version})=>{
-    if(rooms.has(roomId)){
-      const room=rooms.get(roomId)
-      const response=await axios.post("https://emkc.org/api/v2/piston/execute",{
-        language,
-        version,
-        files:[
-          {
-            content:code
-          }
-        ]
-      })
-      room.output=response.data.run.output
-      io.to(roomId).emit("codeResponse",response.data)
-    }
-  })
+ socket.on("compileCode", async ({ code, roomId, language }) => {
+  try {
+    if (!rooms.has(roomId)) return;
+
+    const languageMap = {
+      javascript: 63, // Node.js
+      python: 71,
+      java: 62,
+      cpp: 54,
+    };
+
+    const response = await axios.post(
+      "https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true",
+      {
+        source_code: code,
+        language_id: languageMap[language],
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com",
+          "X-RapidAPI-Key": process.env.RAPID_API_KEY,
+        },
+      }
+    );
+
+    io.to(roomId).emit("codeResponse", {
+      run: {
+        output:
+          response.data.stdout ||
+          response.data.stderr ||
+          response.data.compile_output ||
+          "No Output",
+      },
+    });
+
+  } catch (error) {
+    console.error("Execution error:", error.message);
+
+    io.to(roomId).emit("codeResponse", {
+      run: {
+        output: "Execution Failed",
+      },
+    });
+  }
+});
+
 
   socket.on("disconnect",()=>{
     if(currentRoom && currentUser){
